@@ -38,9 +38,9 @@ class FileCache implements CacheInterface
         $metadata   = $serializer->deserialize(file_get_contents($metadataFile), 'array', 'json');
 
         /** @var \DateTime $lastUpdate */
-        $lastUpdate = $metadata['lastUpdate'];
+        $lastUpdate = new \DateTime($metadata['lastUpdate']);
         $updateTime = $lastUpdate->add($this->ttl);
-        if (new \DateTime() <= $updateTime) {
+        if (new \DateTime() >= $updateTime) {
             return false;
         }
 
@@ -50,14 +50,14 @@ class FileCache implements CacheInterface
     /**
      * Saves an entry to the cache.
      *
-     * @param string $id      ID of the entry.
-     * @param mixed  $content Content to save.
+     * @param string             $id      ID of the entry.
+     * @param CacheItemInterface $content Content to save.
      *
      * @throws FileSystemException
      *
      * @return void
      */
-    public function save($id, $content)
+    public function save($id, CacheItemInterface $content)
     {
         $this->checkCacheDirAccess();
 
@@ -66,9 +66,7 @@ class FileCache implements CacheInterface
         $cacheContent = $serializer->serialize($content, 'json');
         file_put_contents($cacheFile, $cacheContent);
 
-        $type = $this->detectDataType($content);
-
-        $metadata = $serializer->serialize(['lastUpdate' => new \DateTime(), 'type' => $type], 'json');
+        $metadata = $serializer->serialize(['lastUpdate' => new \DateTime()], 'json');
         file_put_contents("{$cacheFile}.meta", $metadata);
     }
 
@@ -80,7 +78,7 @@ class FileCache implements CacheInterface
      * @throws FileSystemException
      * @throws CacheException
      *
-     * @return mixed
+     * @return CacheItemInterface
      */
     public function load($id)
     {
@@ -96,9 +94,8 @@ class FileCache implements CacheInterface
         }
 
         $serializer = SerializerBuilder::create()->build();
-        $metadata   = $serializer->deserialize(file_get_contents("{$cacheFile}.meta"), 'array', 'json');
 
-        return $serializer->deserialize(file_get_contents($cacheFile), $metadata['type'], 'json');
+        return $serializer->deserialize(file_get_contents($cacheFile), 'Toxid\\Cache\\CacheItem', 'json');
     }
 
     /**
@@ -146,7 +143,7 @@ class FileCache implements CacheInterface
     public function __construct($cacheDir, $ttl = 3600)
     {
         $this->cacheDir = $cacheDir;
-        $this->ttl = new \DateInterval("PT{$ttl}S");
+        $this->ttl      = new \DateInterval("PT{$ttl}S");
     }
 
     /**
@@ -165,21 +162,6 @@ class FileCache implements CacheInterface
         }
 
         $this->checkFileAccess($filename);
-    }
-
-    /**
-     * @param mixed $data
-     *
-     * @return string
-     */
-    private function detectDataType($data)
-    {
-        $type = gettype($data);
-        if ('object' == $type) {
-            return get_class($data);
-        }
-
-        return $type;
     }
 
     /**

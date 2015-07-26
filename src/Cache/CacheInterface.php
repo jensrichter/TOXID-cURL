@@ -16,19 +16,19 @@ interface CacheInterface
     /**
      * Saves an entry to the cache.
      *
-     * @param string $id      ID of the entry.
-     * @param string $content Content to save.
+     * @param string             $id      ID of the entry.
+     * @param CacheItemInterface $content Content to save.
      *
      * @return void
      */
-    public function save($id, $content);
+    public function save($id, CacheItemInterface $content);
 
     /**
      * Loads an entry from cache.
      *
      * @param string $id ID of the entry.
      *
-     * @return mixed
+     * @return CacheItemInterface
      */
     public function load($id);
 

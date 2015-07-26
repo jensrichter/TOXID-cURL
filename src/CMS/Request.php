@@ -57,19 +57,23 @@ class Request
     protected $authType;
 
     /**
+     * Initializes the new instance.
+     *
+     * @param EndpointInterface $endpoint Endpoint to be used.
+     *
+     * @return Request
+     */
+    public function __construct(EndpointInterface $endpoint)
+    {
+        $this->endpoint = $endpoint;
+    }
+
+    /**
      * @return EndpointInterface
      */
     public function getEndpoint()
     {
         return $this->endpoint;
-    }
-
-    /**
-     * @param EndpointInterface $endpoint
-     */
-    public function setEndpoint($endpoint)
-    {
-        $this->endpoint = $endpoint;
     }
 
     /**

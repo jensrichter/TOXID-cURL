@@ -6,3 +6,5 @@
 !/composer.lock
 !/LICENSE.txt
 !/README.md
+/app
+/bin

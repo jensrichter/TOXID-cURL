@@ -17,4 +17,25 @@ interface EndpointInterface
      * @return string
      */
     public function getBaseUrl();
+
+    /**
+     * HTTP authentication type.
+     *
+     * @return string
+     */
+    public function getAuthType();
+
+    /**
+     * Username for HTTP authentication.
+     *
+     * @return string
+     */
+    public function getUsername();
+
+    /**
+     * Password for HTTP authentication.
+     *
+     * @return string
+     */
+    public function getPassword();
 }

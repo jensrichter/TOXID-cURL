@@ -9,67 +9,95 @@
 namespace Toxid;
 
 use GuzzleHttp\Client;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\HttpFoundation\Request;
-use Toxid\CMS\EndpointInterface;
-use Toxid\Event\CacheEvent;
-use Toxid\Event\GetRequestEvent;
-use Toxid\CMS\Request as CMSRequest;
 use GuzzleHttp\Message\ResponseInterface;
-use Toxid\Event\ParseResponseEvent;
+use JMS\Serializer\Exception\LogicException;
+use Toxid\Cache\CacheException;
+use Toxid\Cache\CacheInterface;
+use Toxid\Cache\CacheItemInterface;
+use Toxid\CMS\EndpointInterface;
+use Toxid\CMS\Request as CMSRequest;
+use Toxid\CMS\RequestBuilderInterface;
+use Toxid\CMS\ResponseParserInterface;
 
 class Toxid
 {
-    const EVENT_CACHE_FETCH    = 'cache:fetch';
-    const EVENT_CACHE_UPDATE   = 'cache:update';
-    const EVENT_GET_REQUEST    = 'request:get';
-    const EVENT_PARSE_RESPONSE = 'response:parse';
+    /**
+     * @var RequestBuilderInterface[][]
+     */
+    protected $requestBuilders = array();
 
     /**
-     * @var EventDispatcherInterface
+     * @var CacheInterface[][]
      */
-    protected $eventDispatcher;
+    protected $caches = array();
+
+    /**
+     * @var ResponseParserInterface[][]
+     */
+    protected $responseParsers = array();
 
     /**
      * @var EndpointInterface
      */
     protected $endPoints;
 
-    /**
-     * @return EventDispatcherInterface
-     */
-    public function getEventDispatcher()
+    public function fetchUrl($url, $section)
     {
-        return $this->eventDispatcher;
-    }
-
-    /**
-     * @param EventDispatcherInterface $eventDispatcher
-     */
-    public function setEventDispatcher($eventDispatcher)
-    {
-        $this->eventDispatcher = $eventDispatcher;
-    }
-
-    public function fetchUrl($url)
-    {
-        $cacheEvent = new CacheEvent();
-        $cacheEvent->setUrl($url);
-        $this->eventDispatcher->dispatch(self::EVENT_CACHE_FETCH, $cacheEvent);
-
-        if ($cacheEvent->getResult() == CacheEvent::RESULT_CACHE_HIT) {
-            return $cacheEvent->getData();
+        $cacheId = hash('sha256', $url);
+        try {
+            $cacheItem = $this->fetchCache($cacheId);
+        } catch (CacheException $ce) {
+            $request        = $this->buildRequest($url);
+            $guzzleResponse = $this->doCmsRequest($request);
+            $cacheItem      = $this->parseResponse($guzzleResponse, $request->getEndpoint());
         }
 
-        $requestEvent = new GetRequestEvent();
-        $requestEvent->setRequest(Request::createFromGlobals());
-        $this->eventDispatcher->dispatch(self::EVENT_GET_REQUEST, $requestEvent);
+        $this->putToCache($cacheId, $cacheItem);
 
-        $parseResponseEvent = new ParseResponseEvent();
-        $parseResponseEvent->setResponse($this->doCmsRequest($requestEvent->getCmsRequest()));
-        $this->eventDispatcher->dispatch(self::EVENT_PARSE_RESPONSE, $parseResponseEvent);
+        return $cacheItem->getSectionResponse($section);
+    }
 
+    /**
+     * Parses the response from guzzle.
+     *
+     * @param ResponseInterface $response Response from guzzle.
+     * @param EndpointInterface $endpoint Used endpoint.
+     *
+     * @throws LogicException
+     * @return CacheInterface
+     */
+    protected function parseResponse(ResponseInterface $response, EndpointInterface $endpoint)
+    {
+        krsort($this->responseParsers);
+        foreach ($this->responseParsers as $responseParsers) {
+            foreach ($responseParsers as $responseParser) {
+                if ($responseParser->supports($endpoint)) {
+                    return $responseParser->parse($response);
+                }
+            }
+        }
 
+        throw new LogicException('No suitable response parser found!');
+    }
+
+    /**
+     * @param string $url Requested URL
+     *
+     * @throws LogicException
+     * @return CMSRequest
+     */
+    protected function buildRequest($url)
+    {
+        krsort($this->requestBuilders);
+        foreach ($this->requestBuilders as $requestBuilders) {
+            foreach ($requestBuilders as $requestBuilder) {
+                if ($requestBuilder->supports($url)) {
+                    return $requestBuilder->build($url);
+                }
+            }
+        }
+
+        throw new LogicException('No suitable request builder found!');
     }
 
     /**
@@ -105,6 +133,59 @@ class Toxid
 
         $http          = new Client();
         $guzzleRequest = $http->createRequest($request->getRequestMethod(), $requestUrl, $requestOptions);
+
         return $http->send($guzzleRequest);
+    }
+
+    /**
+     * Tries to fetch the requested content from cache.
+     *
+     * @param string $url URL of the request.
+     *
+     * @throws CacheException
+     * @return CacheItemInterface
+     */
+    protected function fetchCache($url)
+    {
+        krsort($this->caches);
+        foreach ($this->caches as $caches) {
+            foreach ($caches as $cache) {
+                if ($cache->isValid($url)) {
+                    return $cache->load($url);
+                }
+            }
+        }
+
+        throw new CacheException('No entry in any cache!', 1);
+    }
+
+    /**
+     * @param string             $url
+     * @param CacheItemInterface $cacheItem
+     *
+     * @return void
+     */
+    protected function putToCache($url, CacheItemInterface $cacheItem)
+    {
+        foreach ($this->caches as $caches) {
+            foreach ($caches as $cache) {
+                $cache->save($url, $cacheItem);
+            }
+        }
+    }
+
+    public function addCache(CacheInterface $cache, $priority = 0)
+    {
+        $this->caches[$priority][] = $cache;
+    }
+
+    public function addRequestBuilder(RequestBuilderInterface $requestBuilder, $priority = 0)
+    {
+        $this->requestBuilders[$priority][] = $requestBuilder;
+    }
+
+    public function addResponseParser(ResponseParserInterface $responseParser, $priority = 0)
+    {
+        $this->responseParsers[$priority][] = $responseParser;
     }
 }
