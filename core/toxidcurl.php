@@ -90,8 +90,8 @@ class toxidCurl
      * @var string
      */
     protected $_sFileExtensionValuesForNoRewrite = null;
-    private   $_initialized                      = false;
-    private   $smartyParser;
+    private $_initialized = false;
+    private $smartyParser;
     /**
      * object
      *
@@ -105,7 +105,7 @@ class toxidCurl
      */
     private $_sPageContent = null;
     private $iLangId;
-    private $cmsAvailable  = true;
+    private $cmsAvailable = true;
 
     /**
      * Stores a list of URL parameters, which will be added to the CMS request.
@@ -113,6 +113,8 @@ class toxidCurl
      * @var array
      */
     private $additionalUrlParams = array();
+
+    private $notFoundUrl = 'de/startseite/404-not-found/';
 
     public function init(Toxid_Curl_Smarty_Parser $smartyParser)
     {
@@ -129,31 +131,31 @@ class toxidCurl
      * returns the called snippet
      *
      * @param string $snippet
-     * @param bool   $blMultiLang
+     * @param bool $blMultiLang
      * @param string $customPage
-     * @param int    $iCacheTtl
+     * @param int $iCacheTtl
      *
      * @return string
      */
     public function getCmsSnippet($snippet = null, $blMultiLang = false, $customPage = null, $iCacheTtl = null, $blGlobalSnippet = false)
     {
-        if (!$this->cmsAvailable) {
+        if ( ! $this->cmsAvailable) {
             return '';
         }
         if ($snippet == null) {
             return '<strong style="color:red;">TOXID: Please add part, you want to display!</strong>';
         }
 
-        $oConf        = $this->getConfig();
-        $sShopId      = $oConf->getActiveShop()->getId();
-        $sLangId      = oxRegistry::getLang()->getBaseLanguage();
-        $oUtils       = oxRegistry::getUtils();
+        $oConf = $this->getConfig();
+        $sShopId = $oConf->getActiveShop()->getId();
+        $sLangId = oxRegistry::getLang()->getBaseLanguage();
+        $oUtils = oxRegistry::getUtils();
         $oUtilsServer = oxRegistry::get('oxUtilsServer');
 
-        $sCacheIdent = $this->getCacheIdent($snippet,$sShopId,$sLangId,$blGlobalSnippet);
+        $sCacheIdent = $this->getCacheIdent($snippet, $sShopId, $sLangId, $blGlobalSnippet);
 
         // check if snippet text has a ttl and is in cache
-        $iCacheTtl   = $this->getCacheLifetime($iCacheTtl);
+        $iCacheTtl = $this->getCacheLifetime($iCacheTtl);
         if ($iCacheTtl !== null && $this->_oSxToxid === null
             && ($sCacheContent = $oUtils->fromFileCache($sCacheIdent))
             && $oUtilsServer->getServerVar('HTTP_CACHE_CONTROL') !== 'no-cache'
@@ -174,24 +176,24 @@ class toxidCurl
 
         $sPageKeywords = $this->_rewriteUrls($this->_getSnippetFromXml('//metadata//keywords', null, $blMultiLang));
 
-        $oConf   = $this->getConfig();
+        $oConf = $this->getConfig();
         $sShopId = $oConf->getActiveShop()->getId();
         $sLangId = oxRegistry::getLang()->getBaseLanguage();
-        $sText   = $this->smartyParser->parse($sText);
+        $sText = $this->smartyParser->parse($sText);
 
         $this->_sPageTitle = $this->smartyParser->parse($sPageTitle);
 
         $this->_sPageDescription = $this->smartyParser->parse($sPageDescription);
 
         $this->_sPageKeywords = $this->smartyParser->parse($sPageKeywords);
-        $this->_aCustomPage   = null;
+        $this->_aCustomPage = null;
 
         /* if actual site is ssl-site, replace all image-sources with ssl-urls */
         if ($oConf->isSsl()) {
 
             $aSslUrl = $oConf->getShopConfVar('aToxidCurlSourceSsl', $sShopId);
             $sSslUrl = $aSslUrl[$sLangId];
-            $oldSrc  = $this->_getToxidLangSource($sLangId);
+            $oldSrc = $this->_getToxidLangSource($sLangId);
 
             $sText = $this->replaceNonSslUrls($sText, $sSslUrl, $oldSrc);
         }
@@ -232,13 +234,13 @@ class toxidCurl
             return $this->_aSearchCache[$sKeywords];
         }
         $this->_aSearchCache[$sKeywords] = '';
-        $sSearchStartUrl                 = $this->_getToxidSearchUrl();
+        $sSearchStartUrl = $this->_getToxidSearchUrl();
 
         $aSearchResults = $this->_getRemoteContent($sSearchStartUrl . $sKeywords);
 
         if ($aSearchResults['info']['http_code'] == 200) {
-            $sSearchResult                   = $aSearchResults['content'];
-            $sSearchResult                   = $this->_rewriteUrls($sSearchResult);
+            $sSearchResult = $aSearchResults['content'];
+            $sSearchResult = $this->_rewriteUrls($sSearchResult);
             $this->_aSearchCache[$sKeywords] = $sSearchResult;
         }
 
@@ -281,11 +283,10 @@ class toxidCurl
      */
     protected function _getXmlObject($blReset = false)
     {
-        if ($this->_oSxToxid !== null && !$blReset) {
+        if ($this->_oSxToxid !== null && ! $blReset) {
             return $this->_oSxToxid;
         }
         $this->_oSxToxid = simplexml_load_string($this->_getXmlFromTypo3($blReset));
-
         return $this->_oSxToxid;
 
     }
@@ -299,11 +300,11 @@ class toxidCurl
      */
     protected function _getSnippetFromXml($sSnippet)
     {
-        $oTypo3Xml      = $this->_getXmlObject();
+        $oTypo3Xml = $this->_getXmlObject();
         $aXpathSnippets = $oTypo3Xml->xpath('//' . $sSnippet . '[1]');
-        $sText          = $aXpathSnippets[0];
+        $sText = $aXpathSnippets[0];
 
-        return (string) $sText;
+        return (string)$sText;
 
     }
 
@@ -316,7 +317,7 @@ class toxidCurl
      */
     protected function _getXmlFromTypo3($blReset = false)
     {
-        if ($this->_sPageContent !== null && !$blReset) {
+        if ($this->_sPageContent !== null && ! $blReset) {
             return $this->_sPageContent;
         }
 
@@ -325,9 +326,8 @@ class toxidCurl
         $page   = $this->postProcessPageString($page);
         $param  = $this->_getToxidLangUrlParam();
         $custom = $this->_getToxidCustomPage();
-        $sUrl   = $source . $custom . $page . $param;
-        $aPage  = $this->getRemoteContentAndHandleStatusCodes($sUrl);
-
+        $sUrl = $source . $custom . $page . $param;
+        $aPage = $this->getRemoteContentAndHandleStatusCodes($sUrl);
         // Especially for Wordpress-Frickel-Heinze
         // Kill everything before the <?xml
         $this->_sPageContent = preg_replace('/.*<\?xml/ms', '<?xml', $aPage['content']);
@@ -343,7 +343,7 @@ class toxidCurl
         //          )
         //        | .                                 # anything else
         //        /x
-        $regex               = '/((?:[\x00-\x7F]|[\xC0-\xDF][\x80-\xBF]|[\xE0-\xEF][\x80-\xBF]{2}|[\xF0-\xF7][\x80-\xBF]{3}){1,100})|./x';
+        $regex = '/((?:[\x00-\x7F]|[\xC0-\xDF][\x80-\xBF]|[\xE0-\xEF][\x80-\xBF]{2}|[\xF0-\xF7][\x80-\xBF]{3}){1,100})|./x';
         $this->_sPageContent = preg_replace($regex, '$1', $this->_sPageContent);
 
         return $this->_sPageContent;
@@ -365,7 +365,7 @@ class toxidCurl
      */
     protected function _getRemoteContent($sUrl)
     {
-        $aResult     = array();
+        $aResult = array();
         $curl_handle = curl_init();
 
         $params = http_build_query($this->additionalUrlParams);
@@ -377,19 +377,19 @@ class toxidCurl
 
         curl_setopt($curl_handle, CURLOPT_URL, $sUrl);
         curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, 1);
-        if (!$this->isToxidCurlPage()) {
+        if ( ! $this->isToxidCurlPage()) {
             curl_setopt($curl_handle, CURLOPT_FOLLOWLOCATION, true);
         }
 
         /* Forward POST requests like a boss */
-        if (!empty($_POST) && !$this->getConfig()->getConfigParam('bToxidDontPassPostVarsToCms')) {
+        if ( ! empty($_POST) && ! $this->getConfig()->getConfigParam('bToxidDontPassPostVarsToCms')) {
             $postRequest = http_build_query($_POST, '', '&');
             curl_setopt($curl_handle, CURLOPT_POST, 1);
             curl_setopt($curl_handle, CURLOPT_POSTFIELDS, $postRequest);
         }
 
         $aResult['content'] = curl_exec($curl_handle);
-        $aResult['info']    = curl_getinfo($curl_handle);
+        $aResult['info'] = curl_getinfo($curl_handle);
         curl_close($curl_handle);
 
         return $aResult;
@@ -399,8 +399,8 @@ class toxidCurl
      * rewrites given string URL's, which belongs to typo3 and configured in aToxidCurlSource
      *
      * @param string $sContent
-     * @param int    $iLangId
-     * @param bool   $blMultiLang
+     * @param int $iLangId
+     * @param bool $blMultiLang
      *
      * @return string with changed URL's
      */
@@ -427,8 +427,8 @@ class toxidCurl
             if (substr($sShopUrl, -1) !== '/') {
                 $sShopUrl = $sShopUrl . '/';
             }
-            $target  = rtrim($sShopUrl . $this->_getToxidLangSeoSnippet($iLangId), '/') . '/';
-            $source  = $this->_getToxidLangSource($iLangId);
+            $target = rtrim($sShopUrl . $this->_getToxidLangSeoSnippet($iLangId), '/') . '/';
+            $source = $this->_getToxidLangSource($iLangId);
             $pattern = '%[^<>]*(action|href)=[\'"]' . $source . '[^"\']*?(?:/|\.html|\.php|\.asp)?(?:\?[^"\']*)?[\'"][^<>]*%';
 
             preg_match_all($pattern, $sContent, $matches, PREG_SET_ORDER);
@@ -468,7 +468,7 @@ class toxidCurl
     /**
      * returns string with language specific sourceUrl
      *
-     * @param int  $iLangId
+     * @param int $iLangId
      * @param bool $blReset reset object value, and get url again
      *
      * @return string
@@ -493,7 +493,7 @@ class toxidCurl
     /**
      * returns string with language specific toxidUrlParam
      *
-     * @param int  $iLangId
+     * @param int $iLangId
      * @param bool $blReset reset object value, and get url again
      *
      * @return string
@@ -513,7 +513,7 @@ class toxidCurl
     /**
      * returns string with language specific toxidSeoSnippet
      *
-     * @param int  $iLangId
+     * @param int $iLangId
      * @param bool $blReset reset object value, and get url again
      *
      * @return string
@@ -541,7 +541,7 @@ class toxidCurl
     /**
      * returns typo3 search URL
      *
-     * @param int  $iLangId
+     * @param int $iLangId
      * @param bool $blReset reset object value, and get url again
      *
      * @return string
@@ -590,12 +590,14 @@ class toxidCurl
      * Handles HTTP status codes for toxid response
      *
      * @param $sUrl
+     * @param $notFound
      *
      * @return array
      */
-    private function getRemoteContentAndHandleStatusCodes($sUrl)
+    private function getRemoteContentAndHandleStatusCodes($sUrl, $notFound = false)
     {
         $aPage = $this->_getRemoteContent($sUrl);
+
         switch ($aPage['info']['http_code']) {
             case 500:
                 header("HTTP/1.1 500 Internal Server Error");
@@ -603,7 +605,11 @@ class toxidCurl
                 oxRegistry::getUtils()->showMessageAndExit('');
                 break;
             case 404:
-                $this->handleError(404, $aPage['info']['url']);
+                if ($notFound) {
+                    die('Error page could not be found');
+                }
+                $notFoundUrl = $this->_getToxidLangSource() . '/' . $this->notFoundUrl;
+                $aPage = $this->getRemoteContentAndHandleStatusCodes($notFoundUrl, true);
                 break;
             case 301:
                 if ($this->getConfig()->getConfigParam('bToxidRedirect301ToStartpage')) {
@@ -618,7 +624,7 @@ class toxidCurl
             case 302:
             case 307:
                 $redirectUrl = $aPage['info']['redirect_url'];
-                $aPage       = $this->getRemoteContentAndHandleStatusCodes($redirectUrl);
+                $aPage = $this->getRemoteContentAndHandleStatusCodes($redirectUrl);
                 break;
             case 0:
                 header('Location: ' . $this->getConfig()->getShopHomeURL());
@@ -639,9 +645,9 @@ class toxidCurl
     private function prepareRedirectUrl($sUrl)
     {
         $aLangSource = $this->getConfig()->getConfigParam('aToxidCurlSource');
-        $iLangId     = $this->getBaseLanguage();
-        $source      = $aLangSource[$iLangId];
-        $target      = $this->_getToxidLangSeoSnippet($iLangId);
+        $iLangId = $this->getBaseLanguage();
+        $source = $aLangSource[$iLangId];
+        $target = $this->_getToxidLangSeoSnippet($iLangId);
         // replace domain
         $sUrl = str_replace($source, $target, $sUrl);
 
@@ -683,7 +689,7 @@ class toxidCurl
      */
     private function replaceNonSslUrls($sText, $sSslUrl, $oldSrc)
     {
-        if (!empty($sSslUrl)) {
+        if ( ! empty($sSslUrl)) {
 
             $newSrc = $sSslUrl;
 
@@ -705,28 +711,6 @@ class toxidCurl
         return oxRegistry::getConfig();
     }
 
-    /**
-     * Handle toxid request errors
-     *
-     * @param integer $statusCode
-     * @param string  $sUrl
-     */
-    private function handleError($statusCode, $sUrl = '')
-    {
-        $this->cmsAvailable = false;
-
-        switch ($statusCode) {
-            case 404:
-                $sRedirectLinkError404 = $this->getConfig()->getConfigParam('toxidError404Link');
-                if ('' !== trim($sRedirectLinkError404)) {
-                    oxRegistry::getUtils()->redirect($sRedirectLinkError404);
-                }
-                oxRegistry::getUtils()->handlePageNotFoundError($sUrl);
-                break;
-        }
-
-    }
-
     private function getCacheLifetime($iCacheTtl)
     {
         if (null === $iCacheTtl) {
@@ -742,10 +726,11 @@ class toxidCurl
     private function getCacheIdent($snippet, $sShopId, $sLangId, $blGlobalSnippet)
     {
         $identString = $snippet;
-        if (!$blGlobalSnippet) {
+        if ( ! $blGlobalSnippet) {
             $identString .= $this->getConfig()->getConfigParam('sToxidCurlPage');
         }
         $identHash = md5($identString);
+
         return "toxid_snippet_{$identHash}_{$sShopId}_{$sLangId}";
     }
 }
