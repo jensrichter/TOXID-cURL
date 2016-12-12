@@ -634,6 +634,7 @@ class toxidCurl
                 break;
             case 404:
                 if($this->_getToxidNotFoundUrl() && !$notFound404) {
+                    header("HTTP/1.0 404 Not Found");
                     $aPage = $this->getRemoteContentAndHandleStatusCodes($this->_getToxidNotFoundUrl(), true);
                     break;
                 }
